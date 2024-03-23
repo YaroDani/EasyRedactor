@@ -1,0 +1,147 @@
+from PIL.ImageFilter import SHARPEN
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import (
+   QApplication, QWidget,
+   QFileDialog,
+   QLabel, QPushButton, QListWidget,
+   QHBoxLayout, QVBoxLayout,
+)
+from PIL import Image, ImageFilter
+import os
+
+
+app=QApplication([])
+
+main_wid=QWidget()
+
+main_wid.resize(700,500)
+
+main_wid.setWindowTitle("Easy Editor")
+
+btn_file_folder=QPushButton("Папка")
+
+photo_list=QListWidget()
+
+btn_left=QPushButton("Вліво")
+btn_right=QPushButton("Вправо")
+btn_mirror=QPushButton("Дзеркало")
+btn_sharpness=QPushButton("різкість")
+btn_bw=QPushButton("Ч/Б")
+
+lb_img=QLabel()
+
+layout1=QVBoxLayout()
+layout1.addWidget(btn_file_folder)
+layout1.addWidget(photo_list)
+
+layout2=QVBoxLayout()
+layout2.addWidget(lb_img)
+
+layout3=QHBoxLayout()
+layout3.addWidget(btn_left)
+layout3.addWidget(btn_right)
+layout3.addWidget(btn_mirror)
+layout3.addWidget(btn_sharpness)
+layout3.addWidget(btn_bw)
+
+layout2.addLayout(layout3)
+
+main_row=QHBoxLayout()
+main_row.addLayout(layout1,stretch=20)
+main_row.addLayout(layout2,stretch=80)
+
+main_wid.setLayout(main_row)
+main_wid.show()
+
+workdir=""
+
+def choose_workdir():
+   global workdir
+   workdir=QFileDialog.getExistingDirectory()
+
+def filter (files,extensions):
+   result=[]
+   for filename in files:
+      for ext in extensions:
+         if filename.endswith(ext):
+            result.append(filename)
+   return result
+
+def ShowList():
+   cor_ext=[".png",".jpg",".jpeg",".gif"]
+   choose_workdir()
+   files=filter(os.listdir(workdir),cor_ext)
+   photo_list.clear()
+   for file in files:
+      photo_list.addItem(file)
+btn_file_folder.clicked.connect(ShowList)
+
+class ImageProcessor():
+   def __init__(self):
+      self.image=None
+      self.dir=None
+      self.filename=None
+      self.save_dir="Modified/"
+   def load_image(self, dir, filename):
+      self.filename=filename
+      self.dir=dir
+      image_path=os.path.join(dir,filename)
+      self.image=Image.open(image_path)
+   def show_image (self,path):
+      lb_img.hide()
+      pixmap=QPixmap(path)
+      w,h=lb_img.width(),lb_img.height()
+      pixmap=pixmap.scaled(w,h,Qt.KeepAspectRatio)
+      lb_img.setPixmap(pixmap)
+      lb_img.show()
+   def save_image(self):
+      path=os.path.join(self.dir,self.save_dir)
+      if not(os.path.exists(path)or os.path.isdir(path)):
+         os.mkdir(path)
+      image_path=os.path.join(path,self.filename)
+      self.image.save(image_path)
+   def do_left (self):
+      self.image=self.image.transpose(Image.ROTATE_90)
+      self.save_image()
+      direction = os.path.join(workdir, self.save_dir, self.filename)
+      self.show_image(direction)
+   def do_right (self):
+      self.image=self.image.transpose(Image.ROTATE_180)
+      self.save_image()
+      direction = os.path.join(workdir, self.save_dir, self.filename)
+      self.show_image(direction)
+   def do_mirror(self):
+      self.image=self.image.transpose(Image.FLIP_LEFT_RIGHT)
+      self.save_image()
+      direction=os.path.join(workdir,self.save_dir,self.filename)
+      self.show_image(direction)
+   def do_sharpness(self):
+      self.image=self.image.filter(SHARPEN)
+      self.save_image()
+      direction = os.path.join(workdir, self.save_dir, self.filename)
+      self.show_image(direction)
+   def do_bw(self):
+      self.image=self.image.convert("L")
+      self.save_image()
+      image_path=os.path.join(self.dir,self.save_dir,self.filename)
+      self.show_image(image_path)
+
+
+work_image=ImageProcessor()
+def show_chosen_image():
+   if photo_list.currentRow()>=0:
+      filename=photo_list.currentItem().text()
+      work_image.load_image(workdir,filename)
+      image_path=os.path.join(work_image.dir,work_image.filename)
+      work_image.show_image(image_path)
+photo_list.currentRowChanged.connect(show_chosen_image)
+
+
+btn_left.clicked.connect(work_image.do_left)
+btn_right.clicked.connect(work_image.do_right)
+btn_mirror.clicked.connect(work_image.do_mirror)
+btn_sharpness.clicked.connect(work_image.do_sharpness)
+btn_bw.clicked.connect(work_image.do_bw)
+
+app.exec()
